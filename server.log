@@ -1,0 +1,4 @@
+{"level":"info","message":"Server running at http://localhost:5000"}
+{"level":"info","message":"Connected to MQTT Broker"}
+{"level":"info","message":"Successfully subscribed to topic: waste/bin/data"}
+{"level":"info","message":"Connected to MongoDB"}
