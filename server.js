@@ -3,31 +3,37 @@ const mqtt = require('mqtt');
 const mongoose = require('mongoose');
 const cors = require('cors');
 const bcrypt = require('bcrypt');
-require('dotenv').config(); // Make sure to load the .env file for environment variables
+const WebSocket = require('ws');
 
 const app = express();
-const port = process.env.PORT || 5000; // Use the PORT from .env or default to 5000
+const port = 5000;
 
 // Enable CORS and JSON parsing
-const corsOptions = {
-  origin: process.env.CORS_ORIGIN, // Frontend URL from .env
-  methods: 'GET,POST',
-  allowedHeaders: 'Content-Type',
-};
+const allowedOrigins = ['http://localhost:3000', 'https://elfifthsem.netlify.app'];
 
-app.use(cors(corsOptions));
+app.use(cors({
+  origin: (origin, callback) => {
+    if (!origin || allowedOrigins.includes(origin)) {
+      callback(null, true);  // Allow the request
+    } else {
+      callback(new Error('Not allowed by CORS'));
+    }
+  },
+}));
 app.use(express.json());
 
 // MQTT broker details
-const mqttBroker = 'mqtt://test.mosquitto.org';
-const mqttTopic = 'waste/bin/data';
+const mqttBroker = 'mqtt://broker.hivemq.com'; // HiveMQ public broker
+const mqttTopic = 'waste/bin/data'; // Ensure your topic is unique
 
-// MongoDB connection string from .env
-mongoose.connect(process.env.MONGODB_URI, {
+// WebSocket setup for live updates
+const wss = new WebSocket.Server({ noServer: true });
+
+// Connect to MongoDB
+mongoose.connect('mongodb+srv://waste:subham@waste.1kmvc.mongodb.net/?retryWrites=true&w=majority&appName=waste', {
   useNewUrlParser: true,
   useUnifiedTopology: true,
 });
-
 const db = mongoose.connection;
 db.on('error', console.error.bind(console, 'MongoDB connection error:'));
 db.once('open', () => {
@@ -60,7 +66,7 @@ let wasteData = [
     latitude: 12.92351,
     longitude: 77.49971,
     address: "CURRENT",
-    lastEmpty: null, // Initially no empty timestamp
+    lastEmpty: null, 
   },
   {
     bin: "BIN 2",
@@ -68,7 +74,7 @@ let wasteData = [
     latitude: 12.915872, 
     longitude: 77.49364,
     address: "CAUVERY HOSTEL",
-    lastEmpty: null, // Initially no empty timestamp
+    lastEmpty: null, 
   },
 ];
 
@@ -118,7 +124,7 @@ app.post('/api/register', async (req, res) => {
   }
 });
 
-// Consumer Login
+// Consumer Login (by name instead of CA number)
 app.post('/api/login', async (req, res) => {
   const { name, password } = req.body;
   try {
@@ -161,7 +167,7 @@ app.post('/api/support', async (req, res) => {
 const mqttClient = mqtt.connect(mqttBroker);
 
 mqttClient.on('connect', () => {
-  console.log('Connected to MQTT Broker');
+  console.log('Connected to HiveMQ Broker');
   mqttClient.subscribe(mqttTopic, (err) => {
     if (err) {
       console.error('Subscription failed:', err);
@@ -195,13 +201,27 @@ mqttClient.on('message', (topic, message) => {
           wasteData[1].lastEmpty = getCurrentTime();
         }
       }
+
+      // Notify all connected WebSocket clients
+      wss.clients.forEach((client) => {
+        if (client.readyState === WebSocket.OPEN) {
+          client.send(JSON.stringify(wasteData));
+        }
+      });
     } catch (error) {
       console.error('Error processing MQTT message:', error);
     }
   }
 });
 
-// Start the server
-app.listen(port, () => {
+// WebSocket connection setup
+app.server = app.listen(port, () => {
   console.log(`Server running at http://localhost:${port}`);
+});
+
+// Handle WebSocket upgrade requests
+app.server.on('upgrade', (request, socket, head) => {
+  wss.handleUpgrade(request, socket, head, (ws) => {
+    wss.emit('connection', ws, request);
+  });
 });
