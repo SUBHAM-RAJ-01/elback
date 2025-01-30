@@ -70,7 +70,7 @@ let wasteData = [
   },
   {
     bin: "BIN 2",
-    level: 0,
+    level: 40,
     latitude: 12.915872, 
     longitude: 77.49364,
     address: "CAUVERY HOSTEL",
