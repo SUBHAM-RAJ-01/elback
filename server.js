@@ -9,8 +9,8 @@ const app = express();
 const port = 5000;
 
 // Enable CORS and JSON parsing
-const allowedOrigins = ['http://localhost:3000', 'https://elfifthsem.netlify.app'];
-
+const allowedOrigins = ['https://elfifthsem.netlify.app'];
+//const allowedOrigins = ['http://localhost:3000', 'https://elfifthsem.netlify.app'];
 app.use(cors({
   origin: (origin, callback) => {
     if (!origin || allowedOrigins.includes(origin)) {
